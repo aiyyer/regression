@@ -66,10 +66,11 @@ begin
 
 ; the names of variables in the datafiles
   varName = variables
+  
 
 
-; loop over the variables
-  nvar = 7
+  nvar = 6
+
   do ivar =0,nvar-1
 
 ; Define the output file name
@@ -89,20 +90,14 @@ begin
 
 ;---------------------------------------------------------------------------------------------
     firstTime = True
+    ystart = 2011
     do iy = ystart,ystart+nyears-1
       sDate = (iy*1000000 + sTime)/100
       eDate = (iy*1000000 + eTime)/100
       allTimes := yyyymmdd_time(iy,iy, "integer")
       TIME     := allTimes({sDate:eDate})
 ; now define all files 
-
-      	
       fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
-
-; TP is in 3D files
-      if ( ivar .eq. 6) 
-      fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
-      end if
       print ( "year = " + iy)
       print(fils)
 
@@ -121,6 +116,7 @@ begin
       print (nTimesDat + " " + nTimeRefPerYear)
       if ( nTimeRefPerYear .ne. nTimesDat) then
         print ("Missing data! Stop!")
+        print (datIn
         exit
       end if
       if ( firstTime ) then

@@ -2,17 +2,12 @@
 ; This program will read a reference time series from specified input file
 ; and regress a given field on to the reference time series
 ;
-;
-; This version is for 2D fields such as surface fluxes
-;
 ; Aiyyer  09/2015
 ; updated 01/2015 now for multiple levels
 ; updated 01/2015 used the append function to speed up data read
 ; updated 09/2016 multiple reference time series can be used in one shot
 ; updated 01/2018 to remove the reference timeseries creation and instead
 ;                 now code will read existing time series
-;
-;
 ;--------------------------------------------------------------------------------------
 ; Notes
 ; The program reads band-passed filtered data created earlier. These data have time dimension
@@ -38,13 +33,8 @@ begin
    sTime=inFile->sTime
    eTime=inFile->eTime
       TS=inFile->TS
-;
-  dh       = 24  ; data is every 6 hours
-  lagHours = 72 ; lag +/- lagHours
-  nlag     = lagHours/dh
-  lagArray = ispan(-lagHours,lagHours,dh)
-  
-  print ( sTime + "  " + eTime )
+
+
   printVarSummary(TS)
   dimsTS = dimsizes(TS)
   nTimeRef= dimsTS(0) 
@@ -52,30 +42,41 @@ begin
   nTimeRefPerYear = nTimeRef/nyears
   print (nTimeRef + " " + nyears + " " + nTimeRefPerYear)
 
+
+
+;
+  dh       = 24  ; data is every 6 hours
+  lagHours = 72 ; lag +/- lagHours
+  nlag     = lagHours/dh
+  lagArray = ispan(-lagHours,lagHours,dh)
+  
+  print ( sTime + "  " + eTime + " " + ystart +  " " + nyears)
+
 ;
 ; Now read the data to be regressed against the reference time series
 ; this is a quick way to create an array containing the time stamp of each 6 hourly data 
 ; we will use the array to create another array of filenames to do a mass read of data
 
   print (nyears)
-
+  printVarSummary(TS)
 
 ; list of variables that we need
-  variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
-
+  variables =  (/"V","U","W","Z","T","Q","PV"/)
+  ;variables = (/"PV"/)
 
 ; the names of variables in the datafiles
   varName = variables
+  
 
 
-; loop over the variables
   nvar = 7
-  do ivar =0,nvar-1
+
+  do ivar = 2,nvar-1
 
 ; Define the output file name
-;   fileName = "./" + variables(ivar) + "_TRMMfilt_levRef"+ levRef+ "latRef"+latRef+ ".nc"
-    fileName = "./" + "trmm_" + variables(ivar)+"_latRef"+latRef+ ".nc"
+    fileName = "trmm_" + variables(ivar) + "_latRef"+latRef+ ".nc"
     system( "rm " + fileName )        
+    print (variables)
     print (fileName)
 
     outFile = addfile( fileName, "c" )
@@ -85,7 +86,7 @@ begin
     outFile->nyears=(/nyears/)
     outFile->sTime=(/sTime/)
     outFile->eTime=(/eTime/)
-
+    outFile->TS=(/TS/)
 
 ;---------------------------------------------------------------------------------------------
     firstTime = True
@@ -95,38 +96,32 @@ begin
       allTimes := yyyymmdd_time(iy,iy, "integer")
       TIME     := allTimes({sDate:eDate})
 ; now define all files 
-
-      	
-      fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
-
-; TP is in 3D files
-      if ( ivar .eq. 6) 
       fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
-      end if
-      print ( "year = " + iy)
-      print(fils)
-
       in   := addfiles (fils, "r")
       ListSetType (in, "join")             ; concatenate or "merge" (default)
       delete(allTimes)
       delete(TIME) 
+     
+      print ("year = " + iy)
 ; now read the data 
-      dat := lonFlip(in[:]->$varName(ivar)$(:,{-40.:40.},:))      
-      printVarSummary(dat)
+      dat := lonFlip(in[:]->$varName(ivar)$(:,{1000:100},{-40:40},:))      
       delete(in)
-      datIn := dat(:,:,{-90.:90.})
-
+      datIn := dat(:,:,:,{-90.:90.})
       dimsDatIn = dimsizes(datIn)
       nTimesDat = dimsDatIn(0)
-      print (nTimesDat + " " + nTimeRefPerYear)
+      print (sDate + " " + eDate + " " + nTimesDat + " " + nTimeRefPerYear)
+
       if ( nTimeRefPerYear .ne. nTimesDat) then
+        printVarSummary(datIn)
         print ("Missing data! Stop!")
         exit
       end if
+
       if ( firstTime ) then
         print ("First Time")
         datAppend := datIn
         firstTime = False
+        ;printVarSummary(datIn)
       else        
         datTemp   := array_append_record(datAppend, datIn,0)
         datAppend := datTemp
@@ -135,11 +130,14 @@ begin
     end do
 ;---------------------------------------------------------------------------------------------
        
-    delete(dat)
-    delete(datIn)
+;    delete(dat)
+;    delete(datIn)
     datAppend!0    = "time"
+    printVarSummary(datAppend)
+    printVarSummary(TS)
+   
     datAppend&time = TS&time
-    DATA = datAppend(lat|:,lon|:,time|:)
+    DATA = datAppend(level|:,lat|:,lon|:,time|:)
     delete(datAppend)
     dimsTS = dimsizes(TS)
     nT = dimsTS(0)/nyears
@@ -162,11 +160,11 @@ begin
 ;
 ; create new arrays to hold the time series and data to be regressed
       dimData = dimsizes(DATA)
-     
-      ny =  dimData(0)
-      nx =  dimData(1)
+      nz  = dimData(0)
+      ny =  dimData(1)
+      nx =  dimData(2)
       A  =  new ( (/ntAll,nL/)      ,   typeof(TS) )
-      B  =  new ( (/ny,nx,ntAll/), typeof(DATA) )
+      B  =  new ( (/nz,ny,nx,ntAll/), typeof(DATA) )
       A = -999.
       B = -999.
 ;
@@ -197,8 +195,8 @@ begin
           j1 = i1
           j2 = j1 + ntnew -1           
         end if      
-        A(i1new:i2new,:)   =     TS(j1:j2,:)
-        B(:,:,i1new:i2new) =   DATA(:,:,k1:k2)         
+        A(i1new:i2new,:)     =     TS(j1:j2,:)
+        B(:,:,:,i1new:i2new) =   DATA(:,:,:,k1:k2)         
         print ("  " )     
         print ( TS&time(j1) + " " +  TS&time(j2) )
         print ( DATA&time(k1) + " " +  DATA&time(k2) )
@@ -207,8 +205,8 @@ begin
       
 ; at this point we have the correctly phased timeseries for all years and the data to be regressed for all years
       
-      tval       =  new ( (/ny,nx/),  typeof ( A ) )
-      nptsxy     =  new ( (/ny,nx/),       integer )
+      tval       =  new ( (/nz,ny,nx/),  typeof ( A ) )
+      nptsxy     =  new ( (/nz,ny,nx/),       integer )
       
       do iL = 0,nL-1
         rc = regcoef(A(:,iL),B,tval,nptsxy)
@@ -224,23 +222,22 @@ begin
 ;
 ; Create the arrays to hold the regressed data      
         if ( ilag .eq. 0 .and. iL .eq. 0)then
-          rcAll   = new ( (/ny,nx,2*nlag+1,nL/), "float" )
-          prAll   = new ( (/ny,nx,2*nlag+1,nL/), "float")
-          
-          rcAll!0 = "lat"
-          rcAll!1 = "lon"
-          rcAll!2 = "lag"
-          rcAll!3 = "lonRef"
-          
+          rcAll   = new ( (/nz,ny,nx,2*nlag+1,nL/), "float" )
+          prAll   = new ( (/nz,ny,nx,2*nlag+1,nL/), "float")
+          rcAll!0 = "level"
+          rcAll!1 = "lat"
+          rcAll!2 = "lon"
+          rcAll!3 = "lag"
+          rcAll!4 = "lonRef"
+          rcAll&level = DATA&level
           rcAll&lat   = DATA&lat
           rcAll&lon   = DATA&lon
           rcAll&lag  = lagArray
-          rcAll@lonRef = lonRef
           copy_VarMeta(rcAll,prAll)
         end if
 ;        
-        prAll(:,:,ilag,iL) = (/prob/)
-        rcAll(:,:,ilag,iL) = (/rc/)
+        prAll(:,:,:,ilag,iL) = (/prob/)
+        rcAll(:,:,:,ilag,iL) = (/rc/)
         delete(prob)
         delete(rc)
       end do
@@ -257,6 +254,7 @@ begin
     printVarSummary( rcAll )
     printVarSummary( prAll )
     
+ 
     outFile->rcAll=rcAll
     outFile->prAll=prAll
     
@@ -266,5 +264,6 @@ begin
     delete (DATA)
 ; end loop over all variables
     end do
+
 
 end 
