@@ -1,13 +1,17 @@
 ;--------------------------------------------------------------------------------------
 ; This program will read a reference time series from specified input file
-; and regress a given field on to the reference time series
+; and regress trmm data on the reference time series
 ;
+;  UNDER EDITS((((((((((((((((((((((((((((((((((((((((((((((( MAY 9 2019
+
 ; Aiyyer  09/2015
 ; updated 01/2015 now for multiple levels
 ; updated 01/2015 used the append function to speed up data read
 ; updated 09/2016 multiple reference time series can be used in one shot
 ; updated 01/2018 to remove the reference timeseries creation and instead
 ;                 now code will read existing time series
+;
+;
 ;--------------------------------------------------------------------------------------
 ; Notes
 ; The program reads band-passed filtered data created earlier. These data have time dimension
@@ -18,6 +22,8 @@
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"  
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"  
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
+load "../..//ncl/aiyyer_string_routines.ncl"
+
 ;
 begin
 
@@ -30,104 +36,90 @@ begin
   levRef=inFile->levRef
   ystart=inFile->ystart
   nyears=inFile->nyears
-   sTime=inFile->sTime
-   eTime=inFile->eTime
-      TS=inFile->TS
+  sTime=inFile->sTime
+  eTime=inFile->eTime
+  TS=inFile->TS
 
 
+
+; Since TRMM data begin in 1998, we need to remove all date prior to it
+; if they exist in the data
+
+  if ( ystart .lt. 1998 ) then
+    print ( "ystart = " + ystart)
+    print ("ystart prior 1998. Adjusting the years")
+    nyearsCut = 1998-ystart     
+    
+    dims = dimsizes(TS)
+    ntimes = dims(0)
+; number of days in each year in the reference timeseries is  
+    ndaysperyear = ntimes/nyears
+    N = nyearsCut*ndaysperyear
+    TS2 = TS(N:,:)
+    TS  :=TS2
+    delete(TS2)
+    print (nyears + " " + nyearsCut + " " + ndaysperyear + " " + N)
+  end if
   printVarSummary(TS)
-  dimsTS = dimsizes(TS)
-  nTimeRef= dimsTS(0) 
-
-  nTimeRefPerYear = nTimeRef/nyears
-  print (nTimeRef + " " + nyears + " " + nTimeRefPerYear)
-
-
-
+  
+; now reset ystart and nyears
+  
+  nyears = ystart + nyears - 1998
+  ystart = 1998
+  print ("Number of years; ystart =  " + nyears + " " + ystart)
+  
 ;
   dh       = 24  ; data is every 6 hours
   lagHours = 72 ; lag +/- lagHours
   nlag     = lagHours/dh
   lagArray = ispan(-lagHours,lagHours,dh)
   
-  print ( sTime + "  " + eTime + " " + ystart +  " " + nyears)
-
-
-
-  print (nyears)
-  printVarSummary(TS)
-
-; list of variables that we need
-;
-;  variables =  (/"V","U","W","Z","T","Q","PV"/)
-
-; derived variables
-  variables =  (/"Mse","Dse","zonalAdvMse","meridAdvMse","vertAdvMse","zonalAdvDse","meridAdvDse","vertAdvDse"/)
-
-; the names of variables in the datafiles
-  varName = variables
-
-  nvar = 8
-
-  do ivar = 1,nvar-1
-
-; Define the output file name
-    fileName = "gpcp_" + variables(ivar) + "_latRef"+latRef+ ".nc"
-    system( "rm " + fileName )        
-    print (variables)
-    print (fileName)
-
-    outFile = addfile( fileName, "c" )
-    outFile->latRef=(/latRef/)
-    outFile->levRef=(/levRef/)
-    outFile->ystart=(/ystart/)
-    outFile->nyears=(/nyears/)
-    outFile->sTime=(/sTime/)
-    outFile->eTime=(/eTime/)
-    outFile->TS=(/TS/)
-
-;---------------------------------------------------------------------------------------------
-    firstTime = True
-    do iy = ystart,ystart+nyears-1
-      sDate = (iy*1000000 + sTime)/100
-      eDate = (iy*1000000 + eTime)/100
-
+  print ( sTime + "  " + eTime )
+  
 ;
 ; Now read the data to be regressed against the reference time series
-; this is a quick way to create an array containing the time stamp of daily data
-; we will use the array to create another array of filenames to do a mass read of data
+  
+  print (nyears)
+  
+  varName = "rain"
+  baseDir = "/tamrind/gpcp/data/Daily_Data/By_year/"
 
-      allTimes := yyyymmdd_time(iy,iy, "integer")
-      TIME     := allTimes({sDate:eDate})
-; now define all files 
-      ;fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
-      fils := "/tamrind/eradaily/3D_derived/" + TIME + ".nc" 
+; Define the output file name
 
-      in   := addfiles (fils, "r")
-      ListSetType (in, "join")             ; concatenate or "merge" (default)
-      delete(allTimes)
-      delete(TIME) 
-     
-      print ("year = " + iy)
-; now read the data 
-      dat := lonFlip(in[:]->$varName(ivar)$(:,{1000:100},{-40:40},:))      
-      delete(in)
-      datIn := dat(:,:,:,{-90.:90.})
-      dimsDatIn = dimsizes(datIn)
-      nTimesDat = dimsDatIn(0)
-      print (sDate + " " + eDate + " " + nTimesDat + " " + nTimeRefPerYear)
+  fileName = "gpcp" +  "_gpcp_" + "latRef"+latRef+ ".nc"
+  system( "rm " + fileName )        
+;---------------------------------------------------------------------------------------------
+  firstTime = True
+  do iy = ystart,ystart+nyears-1
+    
+    File = baseDir +  "gpcp_daily_" + iy + ".nc"
+    in   := addfile (File, "r")
+; read the units of time in this file
+    Units = in->time@units
+    ;print (Units)
 
-      if ( nTimeRefPerYear .ne. nTimesDat) then
-        printVarSummary(datIn)
-        print ("Missing data! Stop!")
-        exit
-      end if
 
+    sDate = (iy*1000000 + sTime)/100
+    eDate = (iy*1000000 + eTime)/100
+      
+
+; call custom aiyyer routines
+      dateBegin = ymddate(sDate,Units)
+      dateEnd   = ymddate(eDate,Units)
+      print (cd_calendar(dateBegin,-2) + " " + cd_calendar(dateEnd,-2))
+      print (sDate + " " + eDate)
+
+; now read the data
+      print (dateBegin + " " + dateEnd)
+      dat := lonFlip(in->$varName$({dateBegin:dateEnd},{-35.:35.},:))
+      ;printVarSummary(dat)
+
+
+      datIn := dat(:,:,{-90.:90.})
       if ( firstTime ) then
         print ("First Time")
         datAppend := datIn
         firstTime = False
-        ;printVarSummary(datIn)
       else        
         datTemp   := array_append_record(datAppend, datIn,0)
         datAppend := datTemp
@@ -136,19 +128,19 @@ begin
     end do
 ;---------------------------------------------------------------------------------------------
        
-;    delete(dat)
-;    delete(datIn)
-    datAppend!0    = "time"
-    printVarSummary(datAppend)
-    printVarSummary(TS)
-   
-    datAppend&time = TS&time
-    DATA = datAppend(level|:,lat|:,lon|:,time|:)
+    delete(dat)
+    delete(datIn)
+    DATA = datAppend(lat|:,lon|:,time|:)
+    DATA&time@units = Units
     delete(datAppend)
     dimsTS = dimsizes(TS)
     nT = dimsTS(0)/nyears
     nL = dimsTS(1)
     delete(dimsTS)
+
+    printVarSummary(DATA)
+ 
+
 ;
 ; Now that we have the reference timeseries and the data to regress on to it
 ; We proceed to lag-regressions
@@ -166,11 +158,11 @@ begin
 ;
 ; create new arrays to hold the time series and data to be regressed
       dimData = dimsizes(DATA)
-      nz  = dimData(0)
-      ny =  dimData(1)
-      nx =  dimData(2)
+     
+      ny =  dimData(0)
+      nx =  dimData(1)
       A  =  new ( (/ntAll,nL/)      ,   typeof(TS) )
-      B  =  new ( (/nz,ny,nx,ntAll/), typeof(DATA) )
+      B  =  new ( (/ny,nx,ntAll/), typeof(DATA) )
       A = -999.
       B = -999.
 ;
@@ -201,8 +193,8 @@ begin
           j1 = i1
           j2 = j1 + ntnew -1           
         end if      
-        A(i1new:i2new,:)     =     TS(j1:j2,:)
-        B(:,:,:,i1new:i2new) =   DATA(:,:,:,k1:k2)         
+        A(i1new:i2new,:)   =     TS(j1:j2,:)
+        B(:,:,i1new:i2new) =   DATA(:,:,k1:k2)         
         print ("  " )     
         print ( TS&time(j1) + " " +  TS&time(j2) )
         print ( DATA&time(k1) + " " +  DATA&time(k2) )
@@ -211,13 +203,14 @@ begin
       
 ; at this point we have the correctly phased timeseries for all years and the data to be regressed for all years
       
-      tval       =  new ( (/nz,ny,nx/),  typeof ( A ) )
-      nptsxy     =  new ( (/nz,ny,nx/),       integer )
+      tval       =  new ( (/ny,nx/),  typeof ( A ) )
+      nptsxy     =  new ( (/ny,nx/),       integer )
       
       do iL = 0,nL-1
         rc = regcoef(A(:,iL),B,tval,nptsxy)
 ;
 ; compute the std dev of A and multiply the regression coeff by it
+; to get anomalies
         stdA = dim_stddev_Wrap( A(:,iL) )
         rc = rc*stdA
         print ( "Lag = " + ih + " stdA =" + stdA )
@@ -228,22 +221,22 @@ begin
 ;
 ; Create the arrays to hold the regressed data      
         if ( ilag .eq. 0 .and. iL .eq. 0)then
-          rcAll   = new ( (/nz,ny,nx,2*nlag+1,nL/), "float" )
-          prAll   = new ( (/nz,ny,nx,2*nlag+1,nL/), "float")
-          rcAll!0 = "level"
-          rcAll!1 = "lat"
-          rcAll!2 = "lon"
-          rcAll!3 = "lag"
-          rcAll!4 = "lonRef"
-          rcAll&level = DATA&level
+          rcAll   = new ( (/ny,nx,2*nlag+1,nL/), "float" )
+          prAll   = new ( (/ny,nx,2*nlag+1,nL/), "float")
+          
+          rcAll!0 = "lat"
+          rcAll!1 = "lon"
+          rcAll!2 = "lag"
+          rcAll!3 = "lonRef"
+          
           rcAll&lat   = DATA&lat
           rcAll&lon   = DATA&lon
           rcAll&lag  = lagArray
           copy_VarMeta(rcAll,prAll)
         end if
 ;        
-        prAll(:,:,:,ilag,iL) = (/prob/)
-        rcAll(:,:,:,ilag,iL) = (/rc/)
+        prAll(:,:,ilag,iL) = (/prob/)
+        rcAll(:,:,ilag,iL) = (/rc/)
         delete(prob)
         delete(rc)
       end do
@@ -260,7 +253,7 @@ begin
     printVarSummary( rcAll )
     printVarSummary( prAll )
     
- 
+    outFile = addfile( fileName, "c" )
     outFile->rcAll=rcAll
     outFile->prAll=prAll
     
@@ -268,8 +261,6 @@ begin
     delete(rcAll)
     delete(prAll)
     delete (DATA)
-; end loop over all variables
-    end do
 
 
 end 

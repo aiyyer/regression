@@ -5,7 +5,7 @@
 ; Aiyyer 11/2018
 ;--------------------------------------------------------------------------------------
 ; Notes:
-; as configured currently, reads gpcp filtered fields
+; as configured currently, reads trmm filtered fields
 ; reference timeseries to be used for regressions (Nov 2018)
 ;
 ;--------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ begin
 ; set the starting year
   ystart = 1998
 ; Number of years to read
-  nyears = 17
+  nyears = 13
   yend   = ystart + nyears - 1
   
 ; for each year define the date range to read
@@ -42,25 +42,26 @@ begin
   latRef = 10. ;18. ; only one lat allowed
   lonRef = (/-40.,-30.,-20.,-10.,0.,10.,20.,30.,40./)
 
-  fileName = "reference_timeseries_gpcp_daily" + latRef + "N.nc"
+  fileName = "reference_timeseries_trmm_daily" + latRef + "N.nc"
   system( "rm " + fileName )
   outFile = addfile( fileName, "c" )
 
   print (fileName)
 
-  dir  = "/tamrind/gpcp/data/2to10day/"
-
-; read one of the files to get info on units
-  fNam = "gpcp_2to10day_1998.nc"
+  dir  = "/share01/trmm/carl_3b42/"
+  fNam = "trmm3b42_daily_2to12day_filtered.nc"
+  varNam  = "rain2to12"
   fil  = dir+fNam
   in   = addfile(fil, "r")
+  ;time = in->time
   timeUnits =  in->time@units
   print(timeUnits)
+
   sc=0
   mn=0
   hh=0
-;
-  varNam = "rainBP"
+
+
 ;
 ;----------------------------------------------------------------------------------
   firstTime = 1
@@ -79,18 +80,16 @@ begin
     print(timeStart + " " + timeEnd + " " + ndays)
     print(sTime + " " + eTime)
     print (cd_calendar(timeStart,-2) + "  " + cd_calendar(timeEnd,-2))
-
+                                ; read the data for the given days
 
 ; read the data for the reference point (or the nearest location)
 ; refTS is the reference time series against which we will regress
 ; unfiltered fields
 
-    fNam = "gpcp_2to10day_" + iy + ".nc"
-    fil  = dir+fNam
-    in   = addfile(fil, "r")
-    data=lonFlip(in->$varNam$({timeStart:timeEnd},{latRef},:))
+
+    data=in->$varNam$({timeStart:timeEnd},{latRef},:)
   
-   ; printVarSummary(data)
+    printVarSummary(data)
     refTS = data(:,{lonRef})
     if ( iy .eq. ystart )
       TS = refTS

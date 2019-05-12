@@ -2,6 +2,8 @@
 ; This program will read a reference time series from specified input file
 ; and regress a given field on to the reference time series
 ;
+; This version is for processing 1xdaily fields (i.e. daily averages) 
+; currently configured for daily erai files on our system
 ;
 ; This version is for 2D fields such as surface fluxes
 ;
@@ -14,15 +16,15 @@
 ;
 ;
 ;--------------------------------------------------------------------------------------
-; Notes
-; The program reads band-passed filtered data created earlier. These data have time dimension
-; that is YYYYMMDDHH. 
+;NCSU Tropical Dynamics
+;A. Aiyyer
+;
 ;--------------------------------------------------------------------------------------
 ;--------------------------------------------------------------------------------------
 ;
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"  
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"  
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
+;load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"  
+;load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"  
+;load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 ;
 begin
 
@@ -62,19 +64,18 @@ begin
 
 ; list of variables that we need
   variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
-
-
+;
+;
 ; the names of variables in the datafiles
   varName = variables
-
-
+;
 ; loop over the variables
   nvar = 7
-  do ivar =0,nvar-1
+  do ivar = 6,6 ;0,nvar-1
 
 ; Define the output file name
-;   fileName = "./" + variables(ivar) + "_TRMMfilt_levRef"+ levRef+ "latRef"+latRef+ ".nc"
-    fileName = "./" + "trmm_" + variables(ivar)+"_latRef"+latRef+ ".nc"
+    fileName = "./" + "gpcp_" + variables(ivar)+"_latRef"+latRef+ ".nc"
+
     system( "rm " + fileName )        
     print (fileName)
 
@@ -99,10 +100,15 @@ begin
       	
       fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
 
-; TP is in 3D files
+; TP is in 3D files from 1998-2010 
       if ( ivar .eq. 6) 
-      fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
+        if ( iy .lt. 2011 ) then
+          fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
+        else
+          fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
+        end if
       end if
+      
       print ( "year = " + iy)
       print(fils)
 
@@ -110,12 +116,14 @@ begin
       ListSetType (in, "join")             ; concatenate or "merge" (default)
       delete(allTimes)
       delete(TIME) 
-; now read the data 
+
+
+; now read the data subset and lonflip to center on 0
       dat := lonFlip(in[:]->$varName(ivar)$(:,{-40.:40.},:))      
       printVarSummary(dat)
       delete(in)
       datIn := dat(:,:,{-90.:90.})
-
+      
       dimsDatIn = dimsizes(datIn)
       nTimesDat = dimsDatIn(0)
       print (nTimesDat + " " + nTimeRefPerYear)

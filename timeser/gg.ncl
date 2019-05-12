@@ -27,34 +27,19 @@ begin
 ; Number of years to read
   nyears = 17
   yend   = ystart + nyears - 1
-  
-; for each year define the date range to read
-; Define the JAS period with some padding on either side for lag regressions
-; make sure that the lagHours are not more than the padding hours
-; this is set within the year loop
-;  sTime = 062400
-;  eTime = 100700
-;
-; set the reference time series location 
-; latRef defines the reference lat
-  nRef = 9 ; this is the number of locations for the timeseries
-  lonRef = new(nRef,"float")
-  latRef = 10. ;18. ; only one lat allowed
-  lonRef = (/-40.,-30.,-20.,-10.,0.,10.,20.,30.,40./)
 
-  fileName = "reference_timeseries_gpcp_daily" + latRef + "N.nc"
+  fileName = "gpcp_daily.nc"
   system( "rm " + fileName )
   outFile = addfile( fileName, "c" )
-
   print (fileName)
 
-  dir  = "/tamrind/gpcp/data/2to10day/"
+  dir  = "/tamrind/gpcp/"
 
 ; read one of the files to get info on units
-  fNam = "gpcp_2to10day_1998.nc"
-  fil  = dir+fNam
   in   = addfile(fil, "r")
-  timeUnits =  in->time@units
+
+
+  timeUnits =  "days since 1970-01-01 00:00:00 0:00"
   print(timeUnits)
   sc=0
   mn=0

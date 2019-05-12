@@ -2,11 +2,11 @@
 ; This program will read specified data files and create an output file with
 ; timeseries of data for selected locations for a fixed level.
 ;
-; Aiyyer 11/2018
+; Aiyyer 01/2018
 ;--------------------------------------------------------------------------------------
 ; Notes:
-; as configured currently, reads gpcp filtered fields
-; reference timeseries to be used for regressions (Nov 2018)
+; as configured currently, reads filetered V wind from yearly data to create
+; reference timeseries to be used for regressions (Jan 2018)
 ;
 ;--------------------------------------------------------------------------------------
 ;--------------------------------------------------------------------------------------
@@ -19,79 +19,73 @@ begin
 ;
 ;
 ; Set the level for the reference time series
-  levRef = 0 ; not needed for trmm but keep for consistency with era data
+  levRef = 650
 ;
-  
 ; set the starting year
   ystart = 1998
 ; Number of years to read
-  nyears = 17
-  yend   = ystart + nyears - 1
-  
+  nyears = 13; 36
+;
 ; for each year define the date range to read
 ; Define the JAS period with some padding on either side for lag regressions
 ; make sure that the lagHours are not more than the padding hours
-; this is set within the year loop
-;  sTime = 062400
-;  eTime = 100700
+;
+  sTime = 062400
+  eTime = 100700
 ;
 ; set the reference time series location 
 ; latRef defines the reference lat
-  nRef = 9 ; this is the number of locations for the timeseries
+  nRef = 6 ; this is the number of locations for the timeseries
   lonRef = new(nRef,"float")
   latRef = 10. ;18. ; only one lat allowed
-  lonRef = (/-40.,-30.,-20.,-10.,0.,10.,20.,30.,40./)
+  lonRef = (/-40.,-20.,0.,20.,40.,60./)
 
-  fileName = "reference_timeseries_gpcp_daily" + latRef + "N.nc"
+; 
+; Define the output file name and write some data
+;  fileName = "reference_timeseries_" + latRef + "N.nc"
+
+  fileName = "reference_timeseries_daily_" + levRef +"hPa_" + latRef + "N.nc"
+
+
   system( "rm " + fileName )
   outFile = addfile( fileName, "c" )
 
   print (fileName)
 
-  dir  = "/tamrind/gpcp/data/2to10day/"
+;  dirFiltData = "/typhoon/projects/data/filtered/"
 
-; read one of the files to get info on units
-  fNam = "gpcp_2to10day_1998.nc"
-  fil  = dir+fNam
-  in   = addfile(fil, "r")
-  timeUnits =  in->time@units
-  print(timeUnits)
-  sc=0
-  mn=0
-  hh=0
-;
-  varNam = "rainBP"
+; for daily data
+  dirFiltData = "/typhoon/projects/data/filtered/2to12/
 ;
 ;----------------------------------------------------------------------------------
   firstTime = 1
+;
+  do iy = ystart,ystart+nyears-1
+    sDate = iy*1000000 + sTime
+    eDate = iy*1000000 + eTime
+    print ( sDate + "  " + eDate )
 
-  do iy = ystart,yend
-    mm=06
-    dd=24
-    sTime = mm*10000 + dd*100
-    timeStart   = cd_inv_calendar(iy,mm,dd,hh,mn,sc,timeUnits, 0)
-    mm=10
-    dd=07  
-    timeEnd   = cd_inv_calendar(iy,mm,dd,hh,mn,sc,timeUnits, 0)
-    eTime = mm*10000 + dd*100
+; set the input file
+; here it is defined as the filtered meridional wind data for each year
     
-    ndays = timeEnd-timeStart+1
-    print(timeStart + " " + timeEnd + " " + ndays)
-    print(sTime + " " + eTime)
-    print (cd_calendar(timeStart,-2) + "  " + cd_calendar(timeEnd,-2))
+    inFile = dirFiltData + "V2T10Day" + iy + ".nc"
+    inFile = dirFiltData + "V10DayHP" + iy + ".nc"
+    inFile = dirFiltData + "2-12DayBP_daily"+ iy + ".nc"
 
 
+    in = addfile (inFile,"r")
+
+;    
 ; read the data for the reference point (or the nearest location)
 ; refTS is the reference time series against which we will regress
 ; unfiltered fields
+    
 
-    fNam = "gpcp_2to10day_" + iy + ".nc"
-    fil  = dir+fNam
-    in   = addfile(fil, "r")
-    data=lonFlip(in->$varNam$({timeStart:timeEnd},{latRef},:))
-  
-   ; printVarSummary(data)
-    refTS = data(:,{lonRef})
+;;;; EDITS IN PROGRESS need to fix dates for the subsetting to work
+
+    dat   = lonFlip(in->VBP({sDate:eDate},{levRef},{latRef},:))
+    refTS = dat(:,{lonRef})
+    delete(in)
     if ( iy .eq. ystart )
       TS = refTS
     else
@@ -99,7 +93,7 @@ begin
       delete(TS)
       TS = refTemp
       delete(refTemp)
-    end if    
+    end if
   end do
 
 ; write the timeseries to output file
