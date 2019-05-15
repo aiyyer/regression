@@ -62,14 +62,15 @@ begin
 ;  variables =  (/"V","U","W","Z","T","Q","PV"/)
 
 ; derived variables
-  variables =  (/"Mse","Dse","zonalAdvMse","meridAdvMse","vertAdvMse","zonalAdvDse","meridAdvDse","vertAdvDse"/)
+;  variables =  (/"Mse","Dse","zonalAdvMse","meridAdvMse","vertAdvMse","zonalAdvDse","meridAdvDse","vertAdvDse"/)
+  variables =  (/"zonalAdvQ","meridAdvQ","vertAdvQ"/)
 
 ; the names of variables in the datafiles
   varName = variables
 
-  nvar = 8
+  nvar = 3
 
-  do ivar = 1,nvar-1
+  do ivar = 0,nvar-1
 
 ; Define the output file name
     fileName = "gpcp_" + variables(ivar) + "_latRef"+latRef+ ".nc"
@@ -80,6 +81,7 @@ begin
     outFile = addfile( fileName, "c" )
     outFile->latRef=(/latRef/)
     outFile->levRef=(/levRef/)
+    outFile->lonRef=(/lonRef/)
     outFile->ystart=(/ystart/)
     outFile->nyears=(/nyears/)
     outFile->sTime=(/sTime/)

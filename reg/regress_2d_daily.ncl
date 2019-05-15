@@ -63,15 +63,20 @@ begin
 
 
 ; list of variables that we need
-  variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
+; variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
+; variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
+
+ variables = (/"ColAvgMse","ColAvgDse","ColAvgzonalAdvMse","ColAvgmeridAdvMse","ColAvgvertAdvMse","ColAvgzonalAdvDse","ColAvgmeridAdvDse","ColAvgvertAdvDse","ColAvgzonalAdvQ","ColAvgmeridAdvQ","ColAvgvertAdvQ","TendColAvgMse","TendColAvgDse"/)
+
+print(variables)
 ;
 ;
 ; the names of variables in the datafiles
   varName = variables
 ;
 ; loop over the variables
-  nvar = 7
-  do ivar = 6,6 ;0,nvar-1
+  nvar = dimsizes(variables)
+  do ivar = 0,nvar-1
 
 ; Define the output file name
     fileName = "./" + "gpcp_" + variables(ivar)+"_latRef"+latRef+ ".nc"
@@ -98,16 +103,21 @@ begin
 ; now define all files 
 
       	
-      fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
+;      fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
+      fils := "/tamrind/eradaily/2D_derived/" + TIME + ".nc" 
 
 ; TP is in 3D files from 1998-2010 
-      if ( ivar .eq. 6) 
-        if ( iy .lt. 2011 ) then
-          fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
-        else
-          fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
-        end if
-      end if
+;      if ( ivar .eq. 6) 
+;        if ( iy .lt. 2011 ) then
+;          fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
+;        else
+;          fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
+;        end if
+;      end if
+
+
+
+
       
       print ( "year = " + iy)
       print(fils)
