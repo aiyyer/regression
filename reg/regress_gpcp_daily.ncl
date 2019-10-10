@@ -2,7 +2,6 @@
 ; This program will read a reference time series from specified input file
 ; and regress trmm data on the reference time series
 ;
-;  UNDER EDITS((((((((((((((((((((((((((((((((((((((((((((((( MAY 9 2019
 
 ; Aiyyer  09/2015
 ; updated 01/2015 now for multiple levels
@@ -11,7 +10,7 @@
 ; updated 01/2018 to remove the reference timeseries creation and instead
 ;                 now code will read existing time series
 ;
-;
+; update 08/2019 Ensure regresed data include units etc. info
 ;--------------------------------------------------------------------------------------
 ; Notes
 ; The program reads band-passed filtered data created earlier. These data have time dimension
@@ -27,7 +26,7 @@ load "../..//ncl/aiyyer_string_routines.ncl"
 ;
 begin
 
-; 
+; INPUT REFERENCE TIME SERIES
 ; Define the timeSeries name and read parameters
   fileName = "ref_ts.nc"
   inFile = addfile( fileName, "r" )
@@ -39,7 +38,7 @@ begin
   sTime=inFile->sTime
   eTime=inFile->eTime
   TS=inFile->TS
-
+;-----------------------------------------------------------------------------
 
 
 ; Since TRMM data begin in 1998, we need to remove all date prior to it
@@ -49,7 +48,6 @@ begin
     print ( "ystart = " + ystart)
     print ("ystart prior 1998. Adjusting the years")
     nyearsCut = 1998-ystart     
-    
     dims = dimsizes(TS)
     ntimes = dims(0)
 ; number of days in each year in the reference timeseries is  
@@ -60,6 +58,8 @@ begin
     delete(TS2)
     print (nyears + " " + nyearsCut + " " + ndaysperyear + " " + N)
   end if
+
+
   printVarSummary(TS)
   
 ; now reset ystart and nyears
@@ -163,6 +163,7 @@ begin
       nx =  dimData(1)
       A  =  new ( (/ntAll,nL/)      ,   typeof(TS) )
       B  =  new ( (/ny,nx,ntAll/), typeof(DATA) )
+
       A = -999.
       B = -999.
 ;
@@ -199,7 +200,7 @@ begin
         print ( TS&time(j1) + " " +  TS&time(j2) )
         print ( DATA&time(k1) + " " +  DATA&time(k2) )
       end do
-      
+
       
 ; at this point we have the correctly phased timeseries for all years and the data to be regressed for all years
       
@@ -208,7 +209,7 @@ begin
       
       do iL = 0,nL-1
         rc = regcoef(A(:,iL),B,tval,nptsxy)
-;
+       ;
 ; compute the std dev of A and multiply the regression coeff by it
 ; to get anomalies
         stdA = dim_stddev_Wrap( A(:,iL) )
@@ -232,6 +233,10 @@ begin
           rcAll&lat   = DATA&lat
           rcAll&lon   = DATA&lon
           rcAll&lag  = lagArray
+
+          rcAll@units = DATA@units
+          rcAll@long_name = DATA@long_name
+          
           copy_VarMeta(rcAll,prAll)
         end if
 ;        

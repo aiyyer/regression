@@ -66,7 +66,7 @@ begin
 ; variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
 ; variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
 
- variables = (/"ColAvgMse","ColAvgDse","ColAvgzonalAdvMse","ColAvgmeridAdvMse","ColAvgvertAdvMse","ColAvgzonalAdvDse","ColAvgmeridAdvDse","ColAvgvertAdvDse","ColAvgzonalAdvQ","ColAvgmeridAdvQ","ColAvgvertAdvQ","TendColAvgMse","TendColAvgDse"/)
+ variables = (/"ColAvgQ","ColAvgMse","ColAvgDse","ColAvgzonalAdvMse","ColAvgmeridAdvMse","ColAvgvertAdvMse","ColAvgzonalAdvDse","ColAvgmeridAdvDse","ColAvgvertAdvDse","ColAvgzonalAdvQ","ColAvgmeridAdvQ","ColAvgvertAdvQ","TendColAvgMse","TendColAvgDse","TendColAvgQ"/)
 
 print(variables)
 ;
@@ -76,7 +76,7 @@ print(variables)
 ;
 ; loop over the variables
   nvar = dimsizes(variables)
-  do ivar = 0,nvar-1
+  do ivar = 0,0 ;nvar-1
 
 ; Define the output file name
     fileName = "./" + "gpcp_" + variables(ivar)+"_latRef"+latRef+ ".nc"
