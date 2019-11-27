@@ -79,7 +79,7 @@ print(variables)
 ;
 ; loop over the variables
   nvar = dimsizes(variables)
-  do ivar = 6,6 ;0,nvar-1
+  do ivar = 0,nvar-1
 
 ; Define the output file name
     fileName = "./" + "regressed_" + variables(ivar)+"_latRef"+latRef+ ".nc"
@@ -170,6 +170,9 @@ print(variables)
     nT = dimsTS(0)/nyears
     nL = dimsTS(1)
     delete(dimsTS)
+
+    printVarSummary(DATA)
+    exit
 ;
 ; Now that we have the reference timeseries and the data to regress on to it
 ; We proceed to lag-regressions
@@ -239,8 +242,11 @@ print(variables)
         rc = regcoef(A(:,iL),B,tval,nptsxy)
 ;
 ; compute the std dev of A and multiply the regression coeff by it
+; This yields anomalies of the same units as the data being regresssed
+
         stdA = dim_stddev_Wrap( A(:,iL) )
         rc = rc*stdA
+
         print ( "Lag = " + ih + " stdA =" + stdA )
         df    = nptsxy-2   ; degrees of freedom
         bb     = tval            ; b must be same size as tval (and df)
@@ -261,6 +267,8 @@ print(variables)
           rcAll&lon   = DATA&lon
           rcAll&lag  = lagArray
           rcAll@lonRef = lonRef
+          rcAll@long_name=DATA@long_name
+          rcAll@units=DATA@units
           copy_VarMeta(rcAll,prAll)
         end if
 ;        
