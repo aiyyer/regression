@@ -40,6 +40,7 @@ begin
    sTime=inFile->sTime
    eTime=inFile->eTime
       TS=inFile->TS
+
 ;
   dh       = 24  ; data is every 6 hours
   lagHours = 72 ; lag +/- lagHours
@@ -63,10 +64,12 @@ begin
 
 
 ; list of variables that we need
-; variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
-; variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
+ derived = False
+ variables = (/"SSR","TSR","TTR","STR","SSHF","SLHF","TP"/)
 
- variables = (/"ColAvgQ","ColAvgMse","ColAvgDse","ColAvgzonalAdvMse","ColAvgmeridAdvMse","ColAvgvertAdvMse","ColAvgzonalAdvDse","ColAvgmeridAdvDse","ColAvgvertAdvDse","ColAvgzonalAdvQ","ColAvgmeridAdvQ","ColAvgvertAdvQ","TendColAvgMse","TendColAvgDse","TendColAvgQ"/)
+
+;  derived = True
+; variables = (/"ColAvgQ","ColAvgMse","ColAvgDse","ColAvgzonalAdvMse","ColAvgmeridAdvMse","ColAvgvertAdvMse","ColAvgzonalAdvDse","ColAvgmeridAdvDse","ColAvgvertAdvDse","ColAvgzonalAdvQ","ColAvgmeridAdvQ","ColAvgvertAdvQ","TendColAvgMse","TendColAvgDse","TendColAvgQ"/)
 
 print(variables)
 ;
@@ -76,16 +79,17 @@ print(variables)
 ;
 ; loop over the variables
   nvar = dimsizes(variables)
-  do ivar = 0,0 ;nvar-1
+  do ivar = 6,6 ;0,nvar-1
 
 ; Define the output file name
-    fileName = "./" + "gpcp_" + variables(ivar)+"_latRef"+latRef+ ".nc"
+    fileName = "./" + "regressed_" + variables(ivar)+"_latRef"+latRef+ ".nc"
 
     system( "rm " + fileName )        
     print (fileName)
 
     outFile = addfile( fileName, "c" )
     outFile->latRef=(/latRef/)
+    outFile->lonRef=(/lonRef/)
     outFile->levRef=(/levRef/)
     outFile->ystart=(/ystart/)
     outFile->nyears=(/nyears/)
@@ -100,28 +104,31 @@ print(variables)
       eDate = (iy*1000000 + eTime)/100
       allTimes := yyyymmdd_time(iy,iy, "integer")
       TIME     := allTimes({sDate:eDate})
-; now define all files 
 
-      	
-;      fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
-      fils := "/tamrind/eradaily/2D_derived/" + TIME + ".nc" 
+
+; now define all files 
+; are the fields derived variables or original variables?      	
+      if ( derived ) then
+        fils := "/tamrind/eradaily/2D_derived/" + TIME + ".nc" 
+      else
+        fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
+      end if
+
+
 
 ; TP is in 3D files from 1998-2010 
-;      if ( ivar .eq. 6) 
-;        if ( iy .lt. 2011 ) then
-;          fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
-;        else
-;          fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
-;        end if
-;      end if
-
-
-
-
+      if ( ivar .eq. 6) 
+        if ( iy .lt. 2011 ) then
+          fils := "/tamrind/eradaily/3D/" + TIME + ".nc" 
+        else
+          fils := "/tamrind/eradaily/2D/" + TIME + ".nc" 
+        end if
+      end if
       
+
+
       print ( "year = " + iy)
       print(fils)
-
       in   := addfiles (fils, "r")
       ListSetType (in, "join")             ; concatenate or "merge" (default)
       delete(allTimes)
@@ -129,7 +136,7 @@ print(variables)
 
 
 ; now read the data subset and lonflip to center on 0
-      dat := lonFlip(in[:]->$varName(ivar)$(:,{-40.:40.},:))      
+      dat := lonFlip(in[:]->$varName(ivar)$(:,{-30.:36.},:))      
       printVarSummary(dat)
       delete(in)
       datIn := dat(:,:,{-90.:90.})
